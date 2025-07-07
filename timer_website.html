@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Exam Timer</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+    input { margin: 5px; padding: 5px; }
+    #timer { font-size: 2em; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Exam Timer</h1>
+
+  <label>10-mark Questions: <input type="number" id="q10" min="0"></label><br>
+  <label>15-mark Questions: <input type="number" id="q15" min="0"></label><br>
+  <label>20-mark Questions: <input type="number" id="q20" min="0"></label><br>
+  <button onclick="startTimerSequence()">Start</button>
+
+  <div id="question"></div>
+  <div id="timer"></div>
+
+  <audio id="endSound" src="piep-33489.mp3"></audio>
+  <audio id="midSound" src="700-hz-beeps-86815.mp3"></audio>
+
+  <script>
+    const numSecond = 60;
+    const tuneLength = 14;
+    const midTuneLength = 4;
+    const offset = 2;
+
+    const extra = 0.5;
+    const min10 = 0.1 + extra;
+    const min15 = 11 + extra;
+    const min20 = 15 + extra;
+
+    const endSound = document.getElementById('endSound');
+    const midSound = document.getElementById('midSound');
+
+    let questionQueue = [];
+
+    function startTimerSequence() {
+      const q10 = parseInt(document.getElementById('q10').value || 0);
+      const q15 = parseInt(document.getElementById('q15').value || 0);
+      const q20 = parseInt(document.getElementById('q20').value || 0);
+
+      questionQueue = [];
+
+      for (let i = 0; i < q10; i++) questionQueue.push({ num: i + 1, duration: min10 });
+      for (let i = 0; i < q15; i++) questionQueue.push({ num: 11 + i, duration: min15 });
+      for (let i = 0; i < q20; i++) questionQueue.push({ num: 21 + i, duration: min20 });
+
+      runNext();
+    }
+
+    function runNext() {
+      if (questionQueue.length === 0) {
+        document.getElementById('question').textContent = 'All done!';
+        document.getElementById('timer').textContent = '';
+        return;
+      }
+
+      const q = questionQueue.shift();
+      document.getElementById('question').textContent = `Q${q.num}`;
+      startCountdown(Math.floor(q.duration * numSecond));
+    }
+
+    function startCountdown(seconds) {
+      let effective = seconds - tuneLength - midTuneLength - offset;
+      const mid = Math.floor(effective / 2);
+      let count = effective;
+
+      const timerDisplay = document.getElementById('timer');
+
+      const interval = setInterval(() => {
+        timerDisplay.textContent = `${count} seconds left`;
+        if (count === mid) midSound.play();
+
+        count--;
+        if (count < 0) {
+          clearInterval(interval);
+          endSound.play();
+          runNext();
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
