@@ -12,8 +12,11 @@
   <h1>Exam Timer</h1>
 
   <label>10-mark Questions: <input type="number" id="q10" min="0"></label><br>
+  <label>10-mark Duration (min): <input type="number" id="d10" min="1" value="7"></label><br>
   <label>15-mark Questions: <input type="number" id="q15" min="0"></label><br>
+  <label>15-mark Duration (min): <input type="number" id="d15" min="1" value="11"></label><br>
   <label>20-mark Questions: <input type="number" id="q20" min="0"></label><br>
+  <label>20-mark Duration (min): <input type="number" id="d20" min="1" value="15"></label><br>
   <button onclick="startTimerSequence()">Start</button>
 
   <div id="question"></div>
@@ -28,11 +31,6 @@
     const midTuneLength = 4;
     const offset = 2;
 
-    const extra = 0.5;
-    const min10 = 0.1 + extra;
-    const min15 = 11 + extra;
-    const min20 = 15 + extra;
-
     const endSound = document.getElementById('endSound');
     const midSound = document.getElementById('midSound');
 
@@ -42,12 +40,15 @@
       const q10 = parseInt(document.getElementById('q10').value || 0);
       const q15 = parseInt(document.getElementById('q15').value || 0);
       const q20 = parseInt(document.getElementById('q20').value || 0);
+      const d10 = parseFloat(document.getElementById('d10').value || 7);
+      const d15 = parseFloat(document.getElementById('d15').value || 11);
+      const d20 = parseFloat(document.getElementById('d20').value || 15);
 
       questionQueue = [];
 
-      for (let i = 0; i < q10; i++) questionQueue.push({ num: i + 1, duration: min10 });
-      for (let i = 0; i < q15; i++) questionQueue.push({ num: 11 + i, duration: min15 });
-      for (let i = 0; i < q20; i++) questionQueue.push({ num: 21 + i, duration: min20 });
+      for (let i = 0; i < q10; i++) questionQueue.push({ num: i + 1, duration: d10 });
+      for (let i = 0; i < q15; i++) questionQueue.push({ num: 11 + i, duration: d15 });
+      for (let i = 0; i < q20; i++) questionQueue.push({ num: 21 + i, duration: d20 });
 
       runNext();
     }
@@ -65,23 +66,31 @@
     }
 
     function startCountdown(seconds) {
-      let effective = seconds - tuneLength - midTuneLength - offset;
-      const mid = Math.floor(effective / 2);
+      const effective = seconds - tuneLength - midTuneLength - offset;
+      const midPoint = Math.floor(effective / 2);
       let count = effective;
-
       const timerDisplay = document.getElementById('timer');
+      let interval;
 
-      const interval = setInterval(() => {
+      function tick() {
         timerDisplay.textContent = `${count} seconds left`;
-        if (count === mid) midSound.play();
-
+        if (count === midPoint) {
+          clearInterval(interval);
+          midSound.play();
+          // Pause countdown for 5 seconds while mid beep rings
+          setTimeout(() => {
+            interval = setInterval(tick, 1000);
+          }, 5000);
+        }
         count--;
         if (count < 0) {
           clearInterval(interval);
           endSound.play();
           runNext();
         }
-      }, 1000);
+      }
+
+      interval = setInterval(tick, 1000);
     }
   </script>
 </body>
