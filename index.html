@@ -11,8 +11,8 @@
 <body>
   <h1>Exam Timer</h1>
 
-  <label>10-mark Questions: <input type="number" id="q10" min="0"></label><br>
-  <label>10-mark Duration (min): <input type="number" id="d10" min="1" value="7"></label><br>
+  <label>10-mark Questions: <input type="number" id="q10" min="0" value="2"></label><br>
+  <label>10-mark Duration (min): <input type="number" id="d10" min="0.1" step="0.1" value="0.5"></label><br>
   <label>15-mark Questions: <input type="number" id="q15" min="0"></label><br>
   <label>15-mark Duration (min): <input type="number" id="d15" min="1" value="11"></label><br>
   <label>20-mark Questions: <input type="number" id="q20" min="0"></label><br>
@@ -22,30 +22,48 @@
   <div id="question"></div>
   <div id="timer"></div>
 
-  <audio id="endSound" src="piep-33489.mp3"></audio>
-  <audio id="midSound" src="700-hz-beeps-86815.mp3"></audio>
+  <audio id="endSound" src="piep-33489.mp3" preload="auto"></audio>
+  <audio id="midSound" src="700-hz-beeps-86815.mp3" preload="auto"></audio>
 
   <script>
     const numSecond = 60;
-    const tuneLength = 14;
-    const midTuneLength = 4;
+    const tuneLength = 14;      // duration of end beep in seconds
+    const midTuneLength = 4;    // duration of mid beep in seconds
     const offset = 2;
 
     const endSound = document.getElementById('endSound');
     const midSound = document.getElementById('midSound');
 
+    let audioUnlocked = false;
     let questionQueue = [];
 
+    function unlockAudio() {
+      if (audioUnlocked) return;
+      // Resume AudioContext if available
+      if (window.AudioContext || window.webkitAudioContext) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume();
+      }
+      // Play and pause each sound to unlock playback on Safari
+      [midSound, endSound].forEach(sound => {
+        const playPromise = sound.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => sound.pause()).catch(() => {});
+        }
+      });
+      audioUnlocked = true;
+    }
+
     function startTimerSequence() {
+      unlockAudio();
       const q10 = parseInt(document.getElementById('q10').value || 0);
       const q15 = parseInt(document.getElementById('q15').value || 0);
       const q20 = parseInt(document.getElementById('q20').value || 0);
-      const d10 = parseFloat(document.getElementById('d10').value || 7);
+      const d10 = parseFloat(document.getElementById('d10').value || 0.5);
       const d15 = parseFloat(document.getElementById('d15').value || 11);
       const d20 = parseFloat(document.getElementById('d20').value || 15);
 
       questionQueue = [];
-
       for (let i = 0; i < q10; i++) questionQueue.push({ num: i + 1, duration: d10 });
       for (let i = 0; i < q15; i++) questionQueue.push({ num: 11 + i, duration: d15 });
       for (let i = 0; i < q20; i++) questionQueue.push({ num: 21 + i, duration: d20 });
@@ -59,7 +77,6 @@
         document.getElementById('timer').textContent = '';
         return;
       }
-
       const q = questionQueue.shift();
       document.getElementById('question').textContent = `Q${q.num}`;
       startCountdown(Math.floor(q.duration * numSecond));
@@ -74,19 +91,23 @@
 
       function tick() {
         timerDisplay.textContent = `${count} seconds left`;
+
         if (count === midPoint) {
           clearInterval(interval);
           midSound.play();
-          // Pause countdown for 5 seconds while mid beep rings
+          count--;
           setTimeout(() => {
             interval = setInterval(tick, 1000);
-          }, 5000);
+          }, midTuneLength * 1000);
+          return;
         }
+
         count--;
+
         if (count < 0) {
           clearInterval(interval);
           endSound.play();
-          runNext();
+          setTimeout(runNext, tuneLength * 1000);
         }
       }
 
