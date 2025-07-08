@@ -104,12 +104,8 @@
     audio.play().catch(() => { finish(); clearTimeout(timeout); });
   });
 }
-      };
-      audio.onended = finish;
-      const timeout = setTimeout(finish, Math.ceil(audio.duration || 1) * 1000 + 200);
-      audio.play().catch(() => { finish(); clearTimeout(timeout); });
-    });
-  }
+
+      
 
   function unlockAudio() {
     if (audioUnlocked) return;
