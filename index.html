@@ -89,6 +89,7 @@ function playAudio(audio, duration) {
   return new Promise(resolve => {
     try { audio.pause(); } catch (e) {}
     try { audio.currentTime = 0; } catch (e) {}
+    try { audio.load(); } catch (e) {}
     audio.onended = null;
     let ended = false;
     const finish = () => {
@@ -99,7 +100,6 @@ function playAudio(audio, duration) {
       }
     };
     audio.onended = finish;
-    // Use manual duration (hardcoded), not audio.duration
     const timeout = setTimeout(finish, duration * 1000 + 200);
     audio.play().catch(() => { finish(); clearTimeout(timeout); });
   });
