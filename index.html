@@ -76,33 +76,46 @@
 
   <script>
   const numSecond     = 60;
-  const tuneLength    = 14;   // end-beep duration in seconds
-  const midTuneLength = 4;    // mid-beep duration in seconds
-  const offset        = 2;    // safety margin
+  const tuneLength    = 14;
+  const midTuneLength = 4;
+  const offset        = 2;
 
   const midSound = document.getElementById('midSound');
   const endSound = document.getElementById('endSound');
   let audioUnlocked = false;
   let queue = [];
 
-  // Promisified play for Safari/Chrome sync
   function playAudio(audio) {
     return new Promise(resolve => {
+      audio.onended = null;
       audio.currentTime = 0;
-      audio.play().catch(()=>{});
-      audio.onended = () => resolve();
-      setTimeout(resolve, Math.ceil(audio.duration || 1) * 1000);
+      let ended = false;
+      const finish = () => {
+        if (!ended) {
+          ended = true;
+          audio.onended = null;
+          resolve();
+        }
+      };
+      audio.onended = finish;
+      const timeout = setTimeout(finish, Math.ceil(audio.duration || 1) * 1000 + 200);
+      audio.play().catch(() => { finish(); clearTimeout(timeout); });
     });
   }
 
   function unlockAudio() {
     if (audioUnlocked) return;
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    ctx.resume();
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume();
+    } catch (e) {}
+    // Use a clone for priming so you never trigger real onended or currentTime!
     [midSound, endSound].forEach(a => {
-      a.currentTime = 0;
-      const p = a.play();
-      if (p) p.then(() => a.pause()).catch(() => {});
+      try {
+        const b = a.cloneNode();
+        b.volume = 0;
+        b.play().then(() => b.pause()).catch(() => {});
+      } catch (e) {}
     });
     audioUnlocked = true;
   }
@@ -155,7 +168,6 @@
       }
       count--;
     }
-
     await playAudio(endSound);
   }
 </script>
