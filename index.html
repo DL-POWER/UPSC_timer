@@ -17,106 +17,168 @@
     }
     h1 {
       margin: 20px 0;
-      font-size: 1.5rem;
+      font-size: 1.8em;
+      text-align: center;
     }
-    #minutes, #seconds {
-      font-size: 3rem;
-      margin: 10px;
+    .container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 400px;
     }
-    .controls {
-      margin: 20px 0;
+    .field {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+    .field label {
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 1em;
+    }
+    .field input {
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 100%;
+      box-sizing: border-box;
     }
     button {
-      padding: 10px 20px;
-      font-size: 1rem;
-      margin: 0 10px;
+      width: 100%;
+      padding: 12px;
+      font-size: 1.1em;
+      font-weight: bold;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
       cursor: pointer;
+      margin-top: 10px;
+    }
+    button:active {
+      background: #0056b3;
+    }
+    #question, #timer {
+      margin-top: 20px;
+      font-size: 1.5em;
+      text-align: center;
+      margin-bottom: 20px; /* Extra spacing after timer for better visibility */
     }
   </style>
 </head>
 <body>
   <h1>Exam Timer</h1>
-  <div id="time-display">
-    <span id="minutes">00</span>:<span id="seconds">00</span>
+  <div class="container">
+    <div class="field">
+      <label for="q10">10-mark Questions</label>
+      <input type="number" id="q10" min="0" value="2">
+    </div>
+    <div class="field">
+      <label for="d10">10-mark Duration (minutes)</label>
+      <input type="number" id="d10" min="0.1" step="0.1" value="7">
+    </div>
+    <div class="field">
+      <label for="q15">15-mark Questions</label>
+      <input type="number" id="q15" min="0">
+    </div>
+    <div class="field">
+      <label for="d15">15-mark Duration (minutes)</label>
+      <input type="number" id="d15" min="0.1" step="0.1" value="11">
+    </div>
+    <div class="field">
+      <label for="q20">20-mark Questions</label>
+      <input type="number" id="q20" min="0">
+    </div>
+    <div class="field">
+      <label for="d20">20-mark Duration (minutes)</label>
+      <input type="number" id="d20" min="0.1" step="0.1" value="15">
+    </div>
+    <button onclick="startTimerSequence()">Start Timer</button>
   </div>
-  <div class="controls">
-    <button id="start-btn">Start</button>
-    <button id="reset-btn">Reset</button>
-  </div>
-  <audio id="mid-sound" src="piep-33489.mp3"></audio>
-  <audio id="end-sound" src="700-hz-beeps-86815.mp3"></audio>
+
+  <div id="question"></div>
+  <div id="timer"></div>
+
+  <audio id="endSound" src="piep-33489.mp3" preload="auto"></audio>
+  <audio id="midSound" src="700-hz-beeps-86815.mp3" preload="auto"></audio>
 
   <script>
-    let interval;
-    let timeLeft = 0;
+    const numSecond = 60;
+    const tuneLength = 14;      // end beep duration (s)
+    const midTuneLength = 4;    // mid beep duration (s)
+    const offset = 2;
+
+    const endSound = document.getElementById('endSound');
+    const midSound = document.getElementById('midSound');
     let audioUnlocked = false;
-
-    const midSound = document.getElementById('mid-sound');
-    const endSound = document.getElementById('end-sound');
-    const minutesDisplay = document.getElementById('minutes');
-    const secondsDisplay = document.getElementById('seconds');
-    const startBtn = document.getElementById('start-btn');
-    const resetBtn = document.getElementById('reset-btn');
-
-    startBtn.addEventListener('click', () => {
-      if (!audioUnlocked) unlockAudio();
-      if (interval) return;
-      timeLeft = 300; // 5 minutes in seconds
-      updateDisplay();
-      startCountdown();
-    });
-
-    resetBtn.addEventListener('click', () => {
-      clearInterval(interval);
-      interval = null;
-      timeLeft = 0;
-      updateDisplay();
-    });
+    let questionQueue = [];
 
     function unlockAudio() {
       if (audioUnlocked) return;
-
-      // 1) Resume / unlock AudioContext
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) {
         const ctx = new AC();
         ctx.resume().then(() => {
-          // 2) Play & immediately stop a tiny oscillator to unlock
           const osc = ctx.createOscillator();
           osc.connect(ctx.destination);
           osc.start();
           osc.stop(ctx.currentTime + 0.001);
         });
       }
-
-      // mark as done
       audioUnlocked = true;
     }
 
-    function updateDisplay() {
-      const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-      const secs = String(timeLeft % 60).padStart(2, '0');
-      minutesDisplay.textContent = mins;
-      secondsDisplay.textContent = secs;
+    function startTimerSequence() {
+      unlockAudio();
+      const q10 = +document.getElementById('q10').value || 0;
+      const q15 = +document.getElementById('q15').value || 0;
+      const q20 = +document.getElementById('q20').value || 0;
+      const d10 = +document.getElementById('d10').value || 0;
+      const d15 = +document.getElementById('d15').value || 0;
+      const d20 = +document.getElementById('d20').value || 0;
+
+      questionQueue = [];
+      for (let i = 0; i < q10; i++) questionQueue.push({ num: i+1, duration: d10 });
+      for (let i = 0; i < q15; i++) questionQueue.push({ num: 11+i, duration: d15 });
+      for (let i = 0; i < q20; i++) questionQueue.push({ num: 21+i, duration: d20 });
+
+      runNext();
     }
 
-    function startCountdown() {
-      let midPlay = false;
-      const tuneLength = 10; // length of mid beep in seconds
+    function runNext() {
+      if (!questionQueue.length) {
+        document.getElementById('question').textContent = 'All done!';
+        document.getElementById('timer').textContent = '';
+        return;
+      }
+      const { num, duration } = questionQueue.shift();
+      document.getElementById('question').textContent = `Q${num}`;
+      startCountdown(Math.floor(duration * numSecond));
+    }
+
+    function startCountdown(seconds) {
+      const effective = seconds - tuneLength - midTuneLength - offset;
+      const midPoint = Math.floor(effective/2);
+      let count = effective;
+      const display = document.getElementById('timer');
+      let interval;
 
       function tick() {
-        timeLeft--;
-        updateDisplay();
-
-        // Play the mid-sound at halfway point
-        if (!midPlay && timeLeft === 300 - tuneLength) {
-          midPlay = true;
+        display.textContent = `${count} sec left`;
+        if (count === midPoint) {
+          clearInterval(interval);
           midSound.pause();
           midSound.currentTime = 0;
           midSound.play().catch(() => {});
+          count--;
+          setTimeout(() => interval = setInterval(tick, 1000), midTuneLength*1000);
+          return;
         }
-
-        if (timeLeft < 0) {
+        count--;
+        if (count < 0) {
           clearInterval(interval);
           endSound.pause();
           endSound.currentTime = 0;
