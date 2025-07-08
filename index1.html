@@ -83,11 +83,18 @@
     const midSound = document.getElementById('midSound');
     const endSound = document.getElementById('endSound');
     let queue = [];
-
-    // The problematic unlockAudio function has been removed.
+    
+    // **NEW:** A global variable for the Web Audio API context.
+    let audioContext;
 
     function startTimerSequence() {
-      // The call to unlockAudio() has been removed.
+      // **MODIFIED:** This block initializes and resumes the audio context.
+      // It must be triggered by the user's click.
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      audioContext.resume();
+
       const q10 = +document.getElementById('q10').value || 0;
       const q15 = +document.getElementById('q15').value || 0;
       const q20 = +document.getElementById('q20').value || 0;
