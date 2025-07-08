@@ -130,10 +130,22 @@
           osc.stop(ctx.currentTime + 0.001);
         });
       }
-      // 2) Prime HTMLAudioElements so .play() works later on iOS
+      // 2) Prime HTMLAudioElements silently so .play() works later on iOS
       [midSound, endSound].forEach(sound => {
-        const p = sound.play();
-        if (p) p.then(() => sound.pause()).catch(() => {});
+        const originalVolume = sound.volume;
+        sound.volume = 0;
+        const playPromise = sound.play();
+        if (playPromise) {
+          playPromise.then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            sound.volume = originalVolume;
+          }).catch(() => {
+            sound.volume = originalVolume;
+          });
+        } else {
+          sound.volume = originalVolume;
+        }
       });
       audioUnlocked = true;
     }
