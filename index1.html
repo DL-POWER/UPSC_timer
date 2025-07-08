@@ -65,7 +65,7 @@
       <label for="d20">20-mark Duration (minutes)</label>
       <input type="number" id="d20" min="0.1" step="0.1" value="15">
     </div>
-    <button onclick="startTimerSequence()">Start Timer</button>
+    <button id="startButton">Start Timer</button>
   </div>
 
   <div id="question"></div>
@@ -82,19 +82,29 @@
 
     const midSound = document.getElementById('midSound');
     const endSound = document.getElementById('endSound');
+    const startButton = document.getElementById('startButton');
     let queue = [];
     
-    // **NEW:** A global variable for the Web Audio API context.
-    let audioContext;
+    // **MODIFIED**: A flag to ensure we only unlock audio once.
+    let isAudioUnlocked = false;
+
+    // **NEW**: A robust function to unlock audio on iOS.
+    function unlockAudio() {
+        if (isAudioUnlocked) return;
+
+        // Create a silent sound and play it.
+        // This is the key to waking up the audio system on iOS.
+        const silentSound = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAVFYAAFRWAAABAAgAZGF0YQAAAAA=');
+        silentSound.play().catch(e => console.error("Silent audio playback failed.", e));
+        
+        // Also explicitly load the real sounds to help the browser.
+        midSound.load();
+        endSound.load();
+        
+        isAudioUnlocked = true;
+    }
 
     function startTimerSequence() {
-      // **MODIFIED:** This block initializes and resumes the audio context.
-      // It must be triggered by the user's click.
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      audioContext.resume();
-
       const q10 = +document.getElementById('q10').value || 0;
       const q15 = +document.getElementById('q15').value || 0;
       const q20 = +document.getElementById('q20').value || 0;
@@ -137,7 +147,6 @@
         if (count === midPoint) {
           midSound.currentTime = 0;
           midSound.play().catch(() => {});
-          // Pause countdown while mid beep plays
           await new Promise(r => setTimeout(r, midTuneLength * 1000));
         } else {
           await new Promise(r => setTimeout(r, 1000));
@@ -149,6 +158,13 @@
       endSound.play().catch(() => {});
       await new Promise(r => setTimeout(r, tuneLength * 1000));
     }
+    
+    // **MODIFIED**: Event listener to handle both unlocking and starting.
+    startButton.addEventListener('click', () => {
+        unlockAudio();
+        startTimerSequence();
+    });
+
   </script>
 </body>
 </html>
