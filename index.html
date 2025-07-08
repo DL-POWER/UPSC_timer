@@ -85,10 +85,26 @@
   let audioUnlocked = false;
   let queue = [];
 
-  function playAudio(audio) {
+function playAudio(audio, duration) {
   return new Promise(resolve => {
-    // Always pause and reset currentTime BEFORE setting onended!
     try { audio.pause(); } catch (e) {}
+    try { audio.currentTime = 0; } catch (e) {}
+    audio.onended = null;
+    let ended = false;
+    const finish = () => {
+      if (!ended) {
+        ended = true;
+        audio.onended = null;
+        resolve();
+      }
+    };
+    audio.onended = finish;
+    // Use manual duration (hardcoded), not audio.duration
+    const timeout = setTimeout(finish, duration * 1000 + 200);
+    audio.play().catch(() => { finish(); clearTimeout(timeout); });
+  });
+}
+ catch (e) {}
     try { audio.currentTime = 0; } catch (e) {}
     audio.onended = null;
     let ended = false;
@@ -166,13 +182,13 @@
     while (count > 0) {
       display.textContent = `${count} sec left`;
       if (count === midPoint) {
-        await playAudio(midSound);
+        await playAudio(midSound, midTuneLength);
       } else {
         await new Promise(r => setTimeout(r, 1000));
       }
       count--;
     }
-    await playAudio(endSound);
+    await playAudio(endSound, tuneLength);
   }
 </script>
 </body>
