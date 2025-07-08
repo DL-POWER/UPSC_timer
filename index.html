@@ -1,97 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Exam Timer</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-    input { margin: 5px; padding: 5px; }
-    #timer { font-size: 2em; margin-top: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex; flex-direction: column; align-items: center;
+      margin: 0; padding-bottom: 40px;
+    }
+    h1 { margin: 20px 0; font-size: 1.8em; text-align: center; }
+    .container {
+      background: #fff; padding: 20px; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      width: 90%; max-width: 400px;
+    }
+    .field { margin-bottom: 15px; }
+    .field label {
+      display: block; font-weight: bold; margin-bottom: 5px;
+    }
+    .field input {
+      width: 100%; padding: 10px; font-size: 1em;
+      border: 1px solid #ccc; border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%; padding: 12px; font-size: 1.1em;
+      background: #007BFF; color: #fff; border: none;
+      border-radius: 4px; cursor: pointer;
+    }
+    button:active { background: #0056b3; }
+    #question, #timer {
+      margin-top: 20px; font-size: 1.5em; text-align: center;
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
   <h1>Exam Timer</h1>
-
-  <label>10-mark Questions: <input type="number" id="q10" min="0"></label><br>
-  <label>10-mark Duration (min): <input type="number" id="d10" min="1" value="7"></label><br>
-  <label>15-mark Questions: <input type="number" id="q15" min="0"></label><br>
-  <label>15-mark Duration (min): <input type="number" id="d15" min="1" value="11"></label><br>
-  <label>20-mark Questions: <input type="number" id="q20" min="0"></label><br>
-  <label>20-mark Duration (min): <input type="number" id="d20" min="1" value="15"></label><br>
-  <button onclick="startTimerSequence()">Start</button>
+  <div class="container">
+    <div class="field">
+      <label for="q10">10-mark Questions</label>
+      <input type="number" id="q10" min="0" value="2">
+    </div>
+    <div class="field">
+      <label for="d10">10-mark Duration (minutes)</label>
+      <input type="number" id="d10" min="0.1" step="0.1" value="7">
+    </div>
+    <div class="field">
+      <label for="q15">15-mark Questions</label>
+      <input type="number" id="q15" min="0" value="0">
+    </div>
+    <div class="field">
+      <label for="d15">15-mark Duration (minutes)</label>
+      <input type="number" id="d15" min="0.1" step="0.1" value="11">
+    </div>
+    <div class="field">
+      <label for="q20">20-mark Questions</label>
+      <input type="number" id="q20" min="0" value="0">
+    </div>
+    <div class="field">
+      <label for="d20">20-mark Duration (minutes)</label>
+      <input type="number" id="d20" min="0.1" step="0.1" value="15">
+    </div>
+    <button onclick="startTimerSequence()">Start Timer</button>
+  </div>
 
   <div id="question"></div>
   <div id="timer"></div>
 
-  <audio id="endSound" src="piep-33489.mp3"></audio>
-  <audio id="midSound" src="700-hz-beeps-86815.mp3"></audio>
+  <audio id="midSound"   src="700-hz-beeps-86815.mp3" preload="auto"></audio>
+  <audio id="endSound"   src="piep-33489.mp3"       preload="auto"></audio>
 
   <script>
-    const numSecond = 60;
-    const tuneLength = 14;
-    const midTuneLength = 4;
-    const offset = 2;
+  const numSecond     = 60;
+  const tuneLength    = 14;   // end-beep duration in seconds
+  const midTuneLength = 4;    // mid-beep duration in seconds
+  const offset        = 2;    // safety margin
 
-    const endSound = document.getElementById('endSound');
-    const midSound = document.getElementById('midSound');
+  const midSound = document.getElementById('midSound');
+  const endSound = document.getElementById('endSound');
+  let audioUnlocked = false;
+  let queue = [];
 
-    let questionQueue = [];
+  // Promisified play for Safari/Chrome sync
+  function playAudio(audio) {
+    return new Promise(resolve => {
+      audio.currentTime = 0;
+      audio.play().catch(()=>{});
+      audio.onended = () => resolve();
+      setTimeout(resolve, Math.ceil(audio.duration || 1) * 1000);
+    });
+  }
 
-    function startTimerSequence() {
-      const q10 = parseInt(document.getElementById('q10').value || 0);
-      const q15 = parseInt(document.getElementById('q15').value || 0);
-      const q20 = parseInt(document.getElementById('q20').value || 0);
-      const d10 = parseFloat(document.getElementById('d10').value || 7);
-      const d15 = parseFloat(document.getElementById('d15').value || 11);
-      const d20 = parseFloat(document.getElementById('d20').value || 15);
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx.resume();
+    [midSound, endSound].forEach(a => {
+      a.currentTime = 0;
+      const p = a.play();
+      if (p) p.then(() => a.pause()).catch(() => {});
+    });
+    audioUnlocked = true;
+  }
 
-      questionQueue = [];
+  function startTimerSequence() {
+    unlockAudio();
+    const q10 = +document.getElementById('q10').value || 0;
+    const q15 = +document.getElementById('q15').value || 0;
+    const q20 = +document.getElementById('q20').value || 0;
+    const d10 = +document.getElementById('d10').value || 0;
+    const d15 = +document.getElementById('d15').value || 0;
+    const d20 = +document.getElementById('d20').value || 0;
 
-      for (let i = 0; i < q10; i++) questionQueue.push({ num: i + 1, duration: d10 });
-      for (let i = 0; i < q15; i++) questionQueue.push({ num: 11 + i, duration: d15 });
-      for (let i = 0; i < q20; i++) questionQueue.push({ num: 21 + i, duration: d20 });
+    queue = [];
+    for (let i = 0; i < q10; i++) queue.push({ num: i + 1,   secs: d10 * numSecond });
+    for (let i = 0; i < q15; i++) queue.push({ num: 11 + i, secs: d15 * numSecond });
+    for (let i = 0; i < q20; i++) queue.push({ num: 21 + i, secs: d20 * numSecond });
 
-      runNext();
+    runNext();
+  }
+
+  async function runNext() {
+    const qEl = document.getElementById('question');
+    const tEl = document.getElementById('timer');
+
+    if (queue.length === 0) {
+      qEl.textContent = 'All done!';
+      tEl.textContent = '';
+      return;
     }
 
-    function runNext() {
-      if (questionQueue.length === 0) {
-        document.getElementById('question').textContent = 'All done!';
-        document.getElementById('timer').textContent = '';
-        return;
+    const { num, secs } = queue.shift();
+    qEl.textContent = `Q${num}`;
+    await countdown(secs);
+    runNext();
+  }
+
+  async function countdown(total) {
+    const effective = total - tuneLength - midTuneLength - offset;
+    const midPoint = Math.floor(effective / 2);
+    let count = effective;
+    const display = document.getElementById('timer');
+
+    while (count > 0) {
+      display.textContent = `${count} sec left`;
+      if (count === midPoint) {
+        await playAudio(midSound);
+      } else {
+        await new Promise(r => setTimeout(r, 1000));
       }
-
-      const q = questionQueue.shift();
-      document.getElementById('question').textContent = `Q${q.num}`;
-      startCountdown(Math.floor(q.duration * numSecond));
+      count--;
     }
 
-    function startCountdown(seconds) {
-      const effective = seconds - tuneLength - midTuneLength - offset;
-      const midPoint = Math.floor(effective / 2);
-      let count = effective;
-      const timerDisplay = document.getElementById('timer');
-      let interval;
-
-      function tick() {
-        timerDisplay.textContent = `${count} seconds left`;
-        if (count === midPoint) {
-          clearInterval(interval);
-          midSound.play();
-          // Pause countdown for 5 seconds while mid beep rings
-          setTimeout(() => {
-            interval = setInterval(tick, 1000);
-          }, 5000);
-        }
-        count--;
-        if (count < 0) {
-          clearInterval(interval);
-          endSound.play();
-          runNext();
-        }
-      }
-
-      interval = setInterval(tick, 1000);
-    }
-  </script>
+    await playAudio(endSound);
+  }
+</script>
 </body>
 </html>
