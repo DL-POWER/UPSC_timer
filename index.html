@@ -104,22 +104,6 @@ function playAudio(audio, duration) {
     audio.play().catch(() => { finish(); clearTimeout(timeout); });
   });
 }
- catch (e) {}
-    try { audio.currentTime = 0; } catch (e) {}
-    audio.onended = null;
-    let ended = false;
-    const finish = () => {
-      if (!ended) {
-        ended = true;
-        audio.onended = null;
-        resolve();
-      }
-    };
-    audio.onended = finish;
-    const timeout = setTimeout(finish, Math.ceil(audio.duration || 1) * 1000 + 200);
-    audio.play().catch(() => { finish(); clearTimeout(timeout); });
-  });
-}
 
       
 
