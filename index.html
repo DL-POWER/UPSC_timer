@@ -122,11 +122,16 @@
         (new (window.AudioContext || window.webkitAudioContext)()).resume();
       }
       [midSound, endSound].forEach(sound => {
-        sound.pause();
+      try {
         sound.currentTime = 0;
-        const p = sound.play();
-        if (p) p.then(() => sound.pause()).catch(() => {});
-      });
+        sound.muted = true;
+        sound.play().then(() => {
+          sound.pause();
+          sound.muted = false;
+        }).catch(() => {});
+      } catch (e) {}
+    });
+
       audioUnlocked = true;
     }
 
